@@ -22,6 +22,10 @@
 -- Ours, set on attach below:
 --   <leader>ft          file template picker for an empty .java/.kt buffer
 --                       (:IntellijLspFileTemplate; new files get it unasked)
+--   <leader>f           format the changed lines only (git hunks; a file
+--                       without git info whole). Shares the <leader>f prefix
+--                       with the pickers, so it fires after 'timeoutlen'
+--   <leader>o           organize imports (IntelliJ's Optimize Imports)
 -- Server-agnostic LSP maps (gd, <leader>ss, <leader>sr, ...) live in
 -- features/lsp.lua.
 vim.pack.add({ 'https://github.com/JetBrains/intellij-lsp.nvim' })
@@ -78,9 +82,54 @@ local function close_menu()
   return termcodes('<C-e>')
 end
 
+-- Formats only the lines git sees as changed: IntelliJ's formatter rewrites far
+-- more than you touched, which is noise in a repository that does not run it.
+-- Hunks go bottom-up and synchronously, so a reflowed hunk never shifts the
+-- line numbers of one still to come. Without gitsigns data (no repository) the
+-- whole file is formatted; an untracked file is one big hunk anyway.
+local function format_changed(bufnr)
+  local ok, gitsigns = pcall(require, 'gitsigns')
+  local hunks = ok and gitsigns.get_hunks(bufnr) or nil
+  local format = function(range)
+    vim.lsp.buf.format({ bufnr = bufnr, name = 'intellij', range = range, async = false, timeout_ms = 5000 })
+  end
+  if not hunks then
+    return format(nil)
+  end
+  local ranges = {}
+  for _, hunk in ipairs(hunks) do
+    if hunk.added.count > 0 then -- pure deletions leave nothing to format
+      ranges[#ranges + 1] = { hunk.added.start, hunk.added.start + hunk.added.count - 1 }
+    end
+  end
+  if #ranges == 0 then
+    return vim.notify('No changed lines to format', vim.log.levels.INFO)
+  end
+  table.sort(ranges, function(a, b) return a[1] > b[1] end)
+  for _, r in ipairs(ranges) do
+    local last = vim.api.nvim_buf_get_lines(bufnr, r[2] - 1, r[2], false)[1] or ''
+    format({ start = { r[1], 0 }, ['end'] = { r[2], #last } })
+  end
+end
+
+-- IntelliJ's Optimize Imports, offered as a `source.organizeImports` code
+-- action; the title match covers a server that files it under another kind.
+local function organize_imports()
+  vim.lsp.buf.code_action({
+    context = { only = { 'source.organizeImports', 'source' }, diagnostics = {} },
+    filter = function(action)
+      local kind = action.kind or ''
+      return kind:find('^source%.organizeImports') ~= nil
+        or (action.title or ''):lower():find('optimi[sz]e imports') ~= nil
+        or (action.title or ''):lower():find('organi[sz]e imports') ~= nil
+    end,
+    apply = true,
+  })
+end
+
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('features.jvm.intellij', { clear = true }),
-  desc = 'IntelliJ: <CR> closes completion and continues pairs, <leader>ft file templates',
+  desc = 'IntelliJ: <CR> closes completion and continues pairs, <leader>ft/f/o templates, format, imports',
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
     if not client or client.name ~= 'intellij' then
@@ -100,6 +149,14 @@ vim.api.nvim_create_autocmd('LspAttach', {
     vim.keymap.set('n', '<leader>ft', '<Cmd>IntellijLspFileTemplate<CR>', {
       buffer = ev.buf,
       desc = 'Find IntelliJ file templates',
+    })
+    vim.keymap.set('n', '<leader>f', function() format_changed(ev.buf) end, {
+      buffer = ev.buf,
+      desc = 'Format changed lines (IntelliJ)',
+    })
+    vim.keymap.set('n', '<leader>o', organize_imports, {
+      buffer = ev.buf,
+      desc = 'Organize imports (IntelliJ)',
     })
   end,
 })
