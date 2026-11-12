@@ -188,13 +188,116 @@ fzf.setup({
   },
 })
 
+-- Keymap search (<leader>fk). Replaces fzf-lua's `keymaps` provider, which shows
+-- the leader as <Space>, cuts descriptions at 33 characters next to a detail
+-- column (`function: 0x…`) and lists maps without a description:
+--   n   │ <leader>cf │ Code fixes for the problem
+-- Only described maps are listed: global ones plus the current buffer's, so LSP
+-- maps show where a server is attached. A buffer map hides a global one with the
+-- same mode and keys, as it does when typed. <CR> runs the selected map.
+local keymap_query_modes = { 'n', 'x', 's', 'o', 'i', 'c', 't' }
+-- nvim_get_keymap reports maps set for several modes under one letter.
+local keymap_mode_labels = { [' '] = 'nvo', ['!'] = 'ic' }
+local keymap_mode_colors = { n = 'blue', i = 'red', c = 'yellow', t = 'green' }
+
+-- `lhs` arrives with the leader already expanded (a space stays a raw space).
+local function keymap_key_label(lhs)
+  local leader = vim.g.mapleader or '\\'
+  local localleader = vim.g.maplocalleader or '\\'
+  local prefix = ''
+  if lhs:sub(1, #leader) == leader then
+    prefix, lhs = '<leader>', lhs:sub(#leader + 1)
+  elseif lhs:sub(1, #localleader) == localleader then
+    prefix, lhs = '<localleader>', lhs:sub(#localleader + 1)
+  end
+  return prefix .. lhs:gsub(' ', '<Space>')
+end
+
+-- Feeds the map's keys as if typed; visual maps reselect the last selection first.
+local function keymap_run(keymap)
+  local keys = keymap.lhs
+  local mode = keymap.mode
+  if mode == 'x' or mode == 'v' or mode == 's' then
+    keys = 'gv' .. keys
+  elseif mode ~= 'n' and mode ~= ' ' then
+    vim.notify(('Keymap search runs only normal and visual maps, not mode %q'):format(mode),
+      vim.log.levels.WARN)
+    return
+  end
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keys, true, false, true), 'm', false)
+end
+
+local function keymap_search()
+  local utils = require('fzf-lua.utils')
+  local found, order = {}, {}
+  local function add(keymap)
+    if not keymap.desc or keymap.desc == '' or keymap.lhs:match('^<Plug>')
+        or keymap.lhs:match('^<SNR>') then
+      return
+    end
+    local id = keymap.mode .. '\0' .. keymap.lhs
+    if not found[id] then order[#order + 1] = id end
+    if not found[id] or keymap.buffer ~= 0 then found[id] = keymap end
+  end
+  for _, mode in ipairs(keymap_query_modes) do
+    for _, keymap in ipairs(vim.api.nvim_get_keymap(mode)) do add(keymap) end
+  end
+  for _, mode in ipairs(keymap_query_modes) do
+    for _, keymap in ipairs(vim.api.nvim_buf_get_keymap(0, mode)) do add(keymap) end
+  end
+
+  local rows, key_width, mode_width = {}, 0, 0
+  for _, id in ipairs(order) do
+    local keymap = found[id]
+    local row = {
+      keymap = keymap,
+      mode = keymap_mode_labels[keymap.mode] or keymap.mode,
+      key = keymap_key_label(keymap.lhs),
+      desc = keymap.desc:gsub('%s*\n%s*', ' '),
+    }
+    key_width = math.max(key_width, vim.fn.strdisplaywidth(row.key))
+    mode_width = math.max(mode_width, #row.mode)
+    rows[#rows + 1] = row
+  end
+  -- By key, case-insensitive first so <leader>sd and <leader>sD sit together.
+  table.sort(rows, function(a, b)
+    local ka, kb = a.key:lower(), b.key:lower()
+    if ka ~= kb then return ka < kb end
+    if a.key ~= b.key then return a.key < b.key end
+    return a.mode < b.mode
+  end)
+
+  local entries, by_entry = {}, {}
+  local separator = utils.ansi_codes.grey(' │ ')
+  for _, row in ipairs(rows) do
+    local color = utils.ansi_codes[keymap_mode_colors[row.mode] or 'magenta']
+    local key_pad = string.rep(' ', key_width - vim.fn.strdisplaywidth(row.key))
+    local entry = color(row.mode .. string.rep(' ', mode_width - #row.mode))
+      .. separator .. row.key .. key_pad .. separator .. row.desc
+    entries[#entries + 1] = entry
+    by_entry[utils.strip_ansi_coloring(entry)] = row.keymap
+  end
+
+  fzf.fzf_exec(entries, {
+    prompt = 'Keymaps> ',
+    fzf_opts = { ['--no-multi'] = true, ['--tiebreak'] = 'index' },
+    winopts = { height = 0.6, width = 0.7, row = 0.6, col = 0.5 },
+    actions = {
+      ['enter'] = function(selected)
+        local keymap = selected[1] and by_entry[utils.strip_ansi_coloring(selected[1])]
+        if keymap then keymap_run(keymap) end
+      end,
+    },
+  })
+end
+
 local map = vim.keymap.set
 map('n', '<leader>sf', fzf.files, { desc = 'Find files' })
-map('n', '<leader>sg', fzf.live_grep, { desc = '[S]earch by [G]rep' })
-map('n', '<leader>sw', fzf.grep_cword, { desc = '[S]earch current [W]ord' })
-map('x', '<leader>sw', fzf.grep_visual, { desc = '[S]earch current [W]ord (selection)' })
+map('n', '<leader>sg', fzf.live_grep, { desc = 'Search by grep' })
+map('n', '<leader>sw', fzf.grep_cword, { desc = 'Search the word under the cursor' })
+map('x', '<leader>sw', fzf.grep_visual, { desc = 'Search the selection' })
 map('n', '<leader>fc', fzf.commands, { desc = 'Find commands' })
-map('n', '<leader>fk', fzf.keymaps, { desc = 'Find keymaps' })
+map('n', '<leader>fk', keymap_search, { desc = 'Find keymaps' })
 map('n', '<leader>fh', fzf.helptags, { desc = 'Find help tags' })
 map('n', '<leader>fb', fzf.buffers, { desc = 'Find buffers' })
 map('n', '<leader>fr', fzf.oldfiles, { desc = 'Find recent files' })

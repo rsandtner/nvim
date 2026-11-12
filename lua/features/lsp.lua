@@ -21,12 +21,12 @@
 local fzf = require('fzf-lua')
 local map = vim.keymap.set
 
-map('n', '<leader>ss', fzf.lsp_document_symbols, { desc = '[S]earch [S]ymbols in file' })
-map('n', '<leader>sS', fzf.lsp_live_workspace_symbols, { desc = '[S]earch [S]ymbols in workspace' })
-map('n', '<leader>sr', fzf.lsp_references, { desc = '[S]earch [R]eferences' })
-map('n', '<leader>si', fzf.lsp_implementations, { desc = '[S]earch [I]mplementations' })
-map('n', '<leader>sd', fzf.diagnostics_document, { desc = '[S]earch [D]iagnostics in file' })
-map('n', '<leader>sD', fzf.diagnostics_workspace, { desc = '[S]earch [D]iagnostics in workspace' })
+map('n', '<leader>ss', fzf.lsp_document_symbols, { desc = 'Search symbols in this file' })
+map('n', '<leader>sS', fzf.lsp_live_workspace_symbols, { desc = 'Search symbols in the workspace' })
+map('n', '<leader>sr', fzf.lsp_references, { desc = 'Search references' })
+map('n', '<leader>si', fzf.lsp_implementations, { desc = 'Search implementations' })
+map('n', '<leader>sd', fzf.diagnostics_document, { desc = 'Search diagnostics in this file' })
+map('n', '<leader>sD', fzf.diagnostics_workspace, { desc = 'Search diagnostics in the workspace' })
 
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('features.lsp', { clear = true }),
@@ -42,7 +42,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
     local popup = { relative = 'cursor', row = 1, col = 0, height = 12, width = 60 }
     map({ 'n', 'x' }, '<leader>ca', function()
       fzf.lsp_code_actions({ jump1 = false, silent = true, previewer = false, winopts = popup })
-    end, { buffer = ev.buf, desc = '[C]ode [A]ctions' })
+    end, { buffer = ev.buf, desc = 'Code actions' })
     -- The same popup with only the fixes for the problem under the cursor:
     -- Neovim sends the diagnostics at the cursor and keeps actions of kind
     -- 'quickfix' (intellij-lsp tags its fixes so); a lone fix applies at once.
@@ -54,6 +54,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
         winopts = popup,
         context = { only = { 'quickfix' } },
       })
-    end, { buffer = ev.buf, desc = '[C]ode [F]ixes for the problem' })
+    end, { buffer = ev.buf, desc = 'Code fixes for the problem' })
   end,
 })
