@@ -45,4 +45,39 @@ require('intellij-lsp').setup({
   region = 'europe',
   data_sharing = 'none',
   default_sdk = default_sdk(),
+  -- Its buffer-local <CR> would hide mini.pairs' <CR> (features/pairs.lua);
+  -- the combined mapping below does both.
+  enter_accepts_completion = false,
+})
+
+-- <CR> in Java/Kotlin buffers: accept the completion when the menu is up (as
+-- the plugin's own mapping does), otherwise mini.pairs' <CR>, which opens an
+-- indented block between {} (plain <CR> without features/pairs.lua).
+local function termcodes(keys)
+  return vim.api.nvim_replace_termcodes(keys, true, false, true)
+end
+
+vim.api.nvim_create_autocmd('LspAttach', {
+  group = vim.api.nvim_create_augroup('features.intellij', { clear = true }),
+  desc = 'IntelliJ: <CR> accepts completion or continues pairs',
+  callback = function(ev)
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if not client or client.name ~= 'intellij' then
+      return
+    end
+    vim.keymap.set('i', '<CR>', function()
+      if vim.fn.pumvisible() == 1 then
+        -- Nothing selected: <C-y> alone would swallow the newline, so move
+        -- onto the first entry first.
+        local selected = vim.fn.complete_info({ 'selected' }).selected
+        return termcodes(selected == -1 and '<C-n><C-y>' or '<C-y>')
+      end
+      return _G.MiniPairs and MiniPairs.cr() or termcodes('<CR>')
+    end, {
+      buffer = ev.buf,
+      expr = true,
+      replace_keycodes = false,
+      desc = 'Accept completion, or newline (pairs-aware)',
+    })
+  end,
 })

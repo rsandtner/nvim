@@ -19,6 +19,7 @@ local features = {
   'oil',
   'lsp', -- after fzf: its pickers are fzf-lua
   'intellij',
+  'pairs',
 }
 
 for _, feature in ipairs(features) do
