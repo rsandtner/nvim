@@ -17,6 +17,8 @@ local features = {
   'treesitter',
   'fzf',
   'oil',
+  'lsp', -- after fzf: its pickers are fzf-lua
+  'intellij',
 }
 
 for _, feature in ipairs(features) do
