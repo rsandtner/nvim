@@ -58,7 +58,7 @@ local function termcodes(keys)
 end
 
 vim.api.nvim_create_autocmd('LspAttach', {
-  group = vim.api.nvim_create_augroup('features.intellij', { clear = true }),
+  group = vim.api.nvim_create_augroup('features.jvm.intellij', { clear = true }),
   desc = 'IntelliJ: <CR> accepts completion or continues pairs',
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)

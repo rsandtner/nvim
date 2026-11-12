@@ -1,5 +1,5 @@
 -- LSP keymaps for every language server (servers themselves are configured by
--- their own feature, e.g. features/intellij.lua for Java and Kotlin).
+-- their own feature, e.g. features/jvm/intellij.lua for Java and Kotlin).
 --
 -- Neovim's built-in LSP maps stay as they are:
 --   K          hover                    grn   rename

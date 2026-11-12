@@ -8,7 +8,7 @@
 -- so accepting `println()` does not become `println(())`.
 --
 -- Java/Kotlin buffers: intellij-lsp maps <CR> for accepting completions, so
--- features/intellij.lua owns <CR> there and calls MiniPairs.cr() itself.
+-- features/jvm/intellij.lua owns <CR> there and calls MiniPairs.cr() itself.
 vim.pack.add({ 'https://github.com/nvim-mini/mini.pairs' })
 
 require('mini.pairs').setup({
