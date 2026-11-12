@@ -12,7 +12,9 @@ require('config.keymaps')
 require('config.autocmds')
 
 -- Features: one module under lua/features/ each. Remove a line to drop a feature.
-local features = {}
+local features = {
+  'theme',
+}
 
 for _, feature in ipairs(features) do
   require('features.' .. feature)
