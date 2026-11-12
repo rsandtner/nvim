@@ -20,6 +20,7 @@ local features = {
   'lsp', -- after fzf: its pickers are fzf-lua
   'diagnostics',
   'jvm.intellij',
+  'completion', -- blink.cmp everywhere except Java/Kotlin (built-in there)
   'pairs',
   'git',
 }
