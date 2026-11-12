@@ -21,6 +21,7 @@ local features = {
   'diagnostics',
   'dap', -- before jvm.intellij: its run/test/debug need nvim-dap
   'jvm.intellij',
+  'jvm.lens', -- Run/Test lenses at the end of the @Test line
   'completion', -- blink.cmp everywhere except Java/Kotlin (built-in there)
   'pairs',
   'git',
