@@ -10,6 +10,8 @@
 --   <C-s>      signature help (insert mode)
 -- On top of them:
 --   gd         definition, opens a list when there are several
+--   <leader>ca code actions in a small popup under the cursor (normal: cursor,
+--              visual: selection); opens even when there is only one action
 -- and fzf-lua pickers under <leader>s ("search", next to files and grep):
 --   <leader>ss  symbols in this file      <leader>sS  symbols in the workspace
 --   <leader>sr  references                <leader>si  implementations
@@ -31,5 +33,17 @@ vim.api.nvim_create_autocmd('LspAttach', {
     -- Built-in definition, not a picker: it follows jar:/jrt: locations into
     -- library and JDK sources that servers like intellij-lsp hand back.
     map('n', 'gd', vim.lsp.buf.definition, { buffer = ev.buf, desc = 'Go to definition' })
+    -- jump1 off: fzf-lua would otherwise apply a lone action without asking.
+    -- silent: fzf-lua is not our vim.ui.select backend, which it warns about.
+    -- Like IntelliJ's Alt+Enter: a compact list just below the cursor (sizes
+    -- above 1 are cells; fzf-lua shifts it up when it would leave the screen).
+    map({ 'n', 'x' }, '<leader>ca', function()
+      fzf.lsp_code_actions({
+        jump1 = false,
+        silent = true,
+        previewer = false,
+        winopts = { relative = 'cursor', row = 1, col = 0, height = 12, width = 60 },
+      })
+    end, { buffer = ev.buf, desc = '[C]ode [A]ctions' })
   end,
 })
