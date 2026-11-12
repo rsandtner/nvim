@@ -206,7 +206,10 @@ vim.api.nvim_create_autocmd('LspAttach', {
       if not vim.api.nvim_buf_is_valid(buf) then
         return
       end
-      pcall(vim.lsp.codelens.enable, false, { bufnr = buf, client_id = client.id })
+      -- Per buffer, like the plugin's enable: with `client_id` the "off" goes
+      -- on the client, which outranks the buffer in is_enabled(), so every
+      -- later buffer already looks disabled and keeps its virtual lines.
+      pcall(vim.lsp.codelens.enable, false, { bufnr = buf })
       hook_refresh(client)
       vim.keymap.set('n', '<leader>rl', run_on_line, {
         buffer = buf,
