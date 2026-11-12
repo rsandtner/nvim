@@ -45,6 +45,9 @@ require('intellij-lsp').setup({
   region = 'europe',
   data_sharing = 'none',
   default_sdk = default_sdk(),
+  -- Loads server-plugins/lombok-config-fix so lombok.config is honoured
+  -- (features/jvm/lombok.lua; drop this line to go without).
+  jvm_args = require('features.jvm.lombok').jvm_args(),
   -- Its buffer-local <CR> would hide mini.pairs' <CR> (features/pairs.lua);
   -- the combined mapping below does both.
   enter_accepts_completion = false,
