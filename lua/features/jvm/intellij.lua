@@ -19,6 +19,9 @@
 --   <leader>ci / co     call hierarchy: incoming / outgoing
 --   <leader>ws          workspace symbols (server prompt)
 --   <leader>r* <leader>d* <leader>b/B   run, test, debug (need nvim-dap)
+-- Ours, set on attach below:
+--   <leader>ft          file template picker for an empty .java/.kt buffer
+--                       (:IntellijLspFileTemplate; new files get it unasked)
 -- Server-agnostic LSP maps (gd, <leader>ss, <leader>sr, ...) live in
 -- features/lsp.lua.
 vim.pack.add({ 'https://github.com/JetBrains/intellij-lsp.nvim' })
@@ -62,7 +65,7 @@ end
 
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('features.jvm.intellij', { clear = true }),
-  desc = 'IntelliJ: <CR> accepts completion or continues pairs',
+  desc = 'IntelliJ: <CR> accepts completion or continues pairs, <leader>ft file templates',
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
     if not client or client.name ~= 'intellij' then
@@ -81,6 +84,12 @@ vim.api.nvim_create_autocmd('LspAttach', {
       expr = true,
       replace_keycodes = false,
       desc = 'Accept completion, or newline (pairs-aware)',
+    })
+    -- IntelliJ's file templates (Class, Interface, Enum, Record, ...); the
+    -- plugin only fills empty buffers and says so otherwise.
+    vim.keymap.set('n', '<leader>ft', '<Cmd>IntellijLspFileTemplate<CR>', {
+      buffer = ev.buf,
+      desc = 'Find IntelliJ file templates',
     })
   end,
 })
