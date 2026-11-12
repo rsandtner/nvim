@@ -18,6 +18,7 @@ local features = {
   'fzf',
   'oil',
   'lsp', -- after fzf: its pickers are fzf-lua
+  'diagnostics',
   'jvm.intellij',
   'pairs',
   'git',

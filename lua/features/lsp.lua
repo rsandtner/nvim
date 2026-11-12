@@ -12,6 +12,8 @@
 --   gd         definition, opens a list when there are several
 --   <leader>ca code actions in a small popup under the cursor (normal: cursor,
 --              visual: selection); opens even when there is only one action
+--   <leader>cf quick fixes for the problem under the cursor, same popup; a lone
+--              fix applies right away
 -- and fzf-lua pickers under <leader>s ("search", next to files and grep):
 --   <leader>ss  symbols in this file      <leader>sS  symbols in the workspace
 --   <leader>sr  references                <leader>si  implementations
@@ -37,13 +39,21 @@ vim.api.nvim_create_autocmd('LspAttach', {
     -- silent: fzf-lua is not our vim.ui.select backend, which it warns about.
     -- Like IntelliJ's Alt+Enter: a compact list just below the cursor (sizes
     -- above 1 are cells; fzf-lua shifts it up when it would leave the screen).
+    local popup = { relative = 'cursor', row = 1, col = 0, height = 12, width = 60 }
     map({ 'n', 'x' }, '<leader>ca', function()
+      fzf.lsp_code_actions({ jump1 = false, silent = true, previewer = false, winopts = popup })
+    end, { buffer = ev.buf, desc = '[C]ode [A]ctions' })
+    -- The same popup with only the fixes for the problem under the cursor:
+    -- Neovim sends the diagnostics at the cursor and keeps actions of kind
+    -- 'quickfix' (intellij-lsp tags its fixes so); a lone fix applies at once.
+    map('n', '<leader>cf', function()
       fzf.lsp_code_actions({
-        jump1 = false,
+        jump1 = true,
         silent = true,
         previewer = false,
-        winopts = { relative = 'cursor', row = 1, col = 0, height = 12, width = 60 },
+        winopts = popup,
+        context = { only = { 'quickfix' } },
       })
-    end, { buffer = ev.buf, desc = '[C]ode [A]ctions' })
+    end, { buffer = ev.buf, desc = '[C]ode [F]ixes for the problem' })
   end,
 })
