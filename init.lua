@@ -14,6 +14,7 @@ require('config.autocmds')
 -- Features: one module under lua/features/ each. Remove a line to drop a feature.
 local features = {
   'theme',
+  'treesitter',
 }
 
 for _, feature in ipairs(features) do
