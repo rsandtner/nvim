@@ -18,7 +18,16 @@
 --   <leader>ts / tu     type hierarchy: subtypes / supertypes
 --   <leader>ci / co     call hierarchy: incoming / outgoing
 --   <leader>ws          workspace symbols (server prompt)
---   <leader>r* <leader>d* <leader>b/B   run, test, debug (need nvim-dap)
+-- Run, test and debug (through nvim-dap, features/dap.lua; every launch is
+-- built by Gradle/Maven first, output in :IntellijLspOutput):
+--   <leader>rr / rd     run / debug the main class at the cursor
+--   <leader>rl          run the code lens on this line (Run/Debug, Run/Debug Test)
+--   <leader>rt / dt     run / debug the test method at the cursor, else its class
+--   <leader>rT          run the last test run again, same mode
+--                       failed tests go to quickfix (:copen), on the assert line
+--   <leader>b / B       toggle breakpoint / conditional breakpoint
+--   <leader>dc dn di do continue, step over / into / out
+--   <leader>dq de dw dv stop, evaluate, watch, debug panel (frames, locals, watches)
 -- Ours, set on attach below:
 --   <leader>ft          file template picker for an empty .java/.kt buffer
 --                       (:IntellijLspFileTemplate; new files get it unasked)

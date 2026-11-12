@@ -1,0 +1,14 @@
+-- Debugger client (nvim-dap). No adapters or configurations of its own: a
+-- language feature brings those. Today the only consumer is intellij-lsp.nvim
+-- (features/jvm/intellij.lua), which needs nvim-dap to run, test and debug
+-- Java/Kotlin at all; without it the plugin requests no Run/Debug code lenses
+-- and every run, test and breakpoint map fails.
+--
+-- No keymaps here. intellij-lsp sets breakpoints, stepping and its own debug
+-- panel buffer-locally in Java/Kotlin buffers (<leader>b/B, <leader>d*), and
+-- colours nvim-dap's signs. Global maps join when a second language (Go) needs
+-- the debugger outside those buffers.
+--
+-- Listed before jvm.intellij in init.lua, so nvim-dap is on the runtimepath
+-- when that plugin sets up.
+vim.pack.add({ 'https://github.com/mfussenegger/nvim-dap' })

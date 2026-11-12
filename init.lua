@@ -19,6 +19,7 @@ local features = {
   'oil',
   'lsp', -- after fzf: its pickers are fzf-lua
   'diagnostics',
+  'dap', -- before jvm.intellij: its run/test/debug need nvim-dap
   'jvm.intellij',
   'completion', -- blink.cmp everywhere except Java/Kotlin (built-in there)
   'pairs',
