@@ -20,6 +20,7 @@ local features = {
   'lsp', -- after fzf: its pickers are fzf-lua
   'jvm.intellij',
   'pairs',
+  'git',
 }
 
 for _, feature in ipairs(features) do
