@@ -15,6 +15,7 @@ require('config.autocmds')
 local features = {
   'theme',
   'treesitter',
+  'fzf',
 }
 
 for _, feature in ipairs(features) do
