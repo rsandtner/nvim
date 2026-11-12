@@ -7,8 +7,8 @@
 -- letter stays single ("don't"). Text inserted by completion is never paired,
 -- so accepting `println()` does not become `println(())`.
 --
--- Java/Kotlin buffers: intellij-lsp maps <CR> for accepting completions, so
--- features/jvm/intellij.lua owns <CR> there and calls MiniPairs.cr() itself.
+-- Java/Kotlin buffers: <CR> must also close the completion menu there without
+-- accepting, so features/jvm/intellij.lua owns <CR> and calls MiniPairs.cr().
 vim.pack.add({ 'https://github.com/nvim-mini/mini.pairs' })
 
 require('mini.pairs').setup({

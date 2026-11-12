@@ -51,39 +51,49 @@ require('intellij-lsp').setup({
   -- Loads server-plugins/lombok-config-fix so lombok.config is honoured
   -- (features/jvm/lombok.lua; drop this line to go without).
   jvm_args = require('features.jvm.lombok').jvm_args(),
-  -- Its buffer-local <CR> would hide mini.pairs' <CR> (features/pairs.lua);
-  -- the combined mapping below does both.
+  -- <CR> must not accept a completion; the mapping below keeps it a
+  -- (mini.pairs-aware) newline.
   enter_accepts_completion = false,
 })
 
--- <CR> in Java/Kotlin buffers: accept the completion when the menu is up (as
--- the plugin's own mapping does), otherwise mini.pairs' <CR>, which opens an
--- indented block between {} (plain <CR> without features/pairs.lua).
+-- <CR> in Java/Kotlin buffers never picks a completion item: it closes the
+-- menu and inserts a newline through mini.pairs' <CR> (an indented block
+-- between {}; plain <CR> without features/pairs.lua). Pick items with <C-y>.
 local function termcodes(keys)
   return vim.api.nvim_replace_termcodes(keys, true, false, true)
 end
 
+-- Closes the completion menu without choosing anything new. Text already
+-- inserted by <C-n>/<C-p> stays (<C-y>); an entry only highlighted with the
+-- arrow keys, or no entry at all, leaves the typed text as it is (<C-e>).
+local function close_menu()
+  local info = vim.fn.complete_info({ 'selected', 'items' })
+  local item = info.items[info.selected + 1]
+  if item and item.word ~= '' then
+    local before = vim.api.nvim_get_current_line():sub(1, vim.fn.col('.') - 1)
+    if before:sub(-#item.word) == item.word then
+      return termcodes('<C-y>')
+    end
+  end
+  return termcodes('<C-e>')
+end
+
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('features.jvm.intellij', { clear = true }),
-  desc = 'IntelliJ: <CR> accepts completion or continues pairs, <leader>ft file templates',
+  desc = 'IntelliJ: <CR> closes completion and continues pairs, <leader>ft file templates',
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
     if not client or client.name ~= 'intellij' then
       return
     end
     vim.keymap.set('i', '<CR>', function()
-      if vim.fn.pumvisible() == 1 then
-        -- Nothing selected: <C-y> alone would swallow the newline, so move
-        -- onto the first entry first.
-        local selected = vim.fn.complete_info({ 'selected' }).selected
-        return termcodes(selected == -1 and '<C-n><C-y>' or '<C-y>')
-      end
-      return _G.MiniPairs and MiniPairs.cr() or termcodes('<CR>')
+      local close = vim.fn.pumvisible() == 1 and close_menu() or ''
+      return close .. (_G.MiniPairs and MiniPairs.cr() or termcodes('<CR>'))
     end, {
       buffer = ev.buf,
       expr = true,
       replace_keycodes = false,
-      desc = 'Accept completion, or newline (pairs-aware)',
+      desc = 'Newline (pairs-aware), never accepts a completion',
     })
     -- IntelliJ's file templates (Class, Interface, Enum, Record, ...); the
     -- plugin only fills empty buffers and says so otherwise.
