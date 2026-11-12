@@ -16,6 +16,7 @@ local features = {
   'theme',
   'treesitter',
   'fzf',
+  'oil',
 }
 
 for _, feature in ipairs(features) do
