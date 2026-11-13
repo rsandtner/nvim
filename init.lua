@@ -24,6 +24,7 @@ local features = {
   'jvm.intellij',
   'jvm.debug_panel', -- debug panel order: Watches, Locals, Call stack
   'rust.lsp', -- rust-analyzer through rustaceanvim
+  'rust.test', -- run/test keys, failed tests to quickfix
   'completion', -- blink.cmp everywhere except Java/Kotlin (built-in there)
   'pairs',
   'git',
