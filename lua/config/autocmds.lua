@@ -26,3 +26,17 @@ vim.api.nvim_create_autocmd('BufReadPost', {
     end
   end,
 })
+
+-- Quickfix and location-list windows (failed tests, grep, references) close
+-- with q or <Esc>, like a float. <Esc> elsewhere still clears the search
+-- highlight (config/keymaps.lua).
+vim.api.nvim_create_autocmd('FileType', {
+  group = group,
+  pattern = 'qf',
+  desc = 'Close quickfix/location-list windows with q or <Esc>',
+  callback = function(ev)
+    for _, lhs in ipairs({ 'q', '<Esc>' }) do
+      vim.keymap.set('n', lhs, '<Cmd>close<CR>', { buffer = ev.buf, nowait = true, desc = 'Close this list' })
+    end
+  end,
+})

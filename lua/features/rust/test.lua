@@ -13,8 +13,11 @@
 --   <leader>rR          the same, asking for its arguments first
 --   <leader>rl          run the code lens on this line (features/lens.lua)
 -- Tests run in the background (no terminal): passed → a notification with
--- cargo's summary; failed → quickfix (:copen), one entry per failed test on
--- the line that panicked (the assert), compile errors on their `-->` line.
+-- cargo's summary (and our quickfix window closes); failed → the quickfix
+-- window opens at the bottom, one entry per failed test on the line that
+-- panicked (the assert), compile errors on their `-->` line. The cursor stays
+-- where it is (a run may end mid-typing): <C-w>j to go there, ]q / :cc to jump
+-- straight to the failure, q or <Esc> in the window closes it.
 -- Binaries run in a terminal split (rustaceanvim's `termopen`), so a TUI works;
 -- <Esc> in normal mode closes it.
 --
@@ -119,6 +122,7 @@ local quickfix_executor = {
           -- Drop our stale failures, never someone else's list (a grep).
           if vim.startswith(vim.fn.getqflist({ title = 0 }).title, QF_TITLE) then
             vim.fn.setqflist({}, 'r', { title = title, items = {} })
+            vim.cmd.cclose()
           end
           return vim.notify(summary or (name .. ' passed'), vim.log.levels.INFO)
         end
@@ -129,7 +133,13 @@ local quickfix_executor = {
         else
           vim.fn.setqflist({}, ' ', { title = title, items = items })
         end
-        vim.notify((summary or (name .. ' failed')) .. ' (:copen)', vim.log.levels.ERROR)
+        -- Open, but leave the cursor where it was.
+        local win = vim.api.nvim_get_current_win()
+        vim.cmd('botright copen')
+        if vim.api.nvim_win_is_valid(win) then
+          vim.api.nvim_set_current_win(win)
+        end
+        vim.notify(summary or (name .. ' failed'), vim.log.levels.ERROR)
       end)
     end)
   end,
