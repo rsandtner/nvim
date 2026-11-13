@@ -23,6 +23,7 @@ local features = {
   'jvm.intellij',
   'jvm.lens', -- Run/Test lenses at the end of the @Test line
   'jvm.debug_panel', -- debug panel order: Watches, Locals, Call stack
+  'rust.lsp', -- rust-analyzer through rustaceanvim
   'completion', -- blink.cmp everywhere except Java/Kotlin (built-in there)
   'pairs',
   'git',
