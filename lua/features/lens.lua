@@ -1,26 +1,39 @@
--- IntelliJ's code lenses (Run | Debug on a main method, Run Test | Debug Test
--- on test classes and methods) at the end of a line, instead of Neovim's own
--- rendering: a virtual line of its own above the declaration, which pushes the
--- code apart and sits between the annotation and the method.
+-- Code lenses (Run | Debug on a main function, Run Test | Debug on tests) at
+-- the end of a line, instead of Neovim's own rendering: a virtual line of its
+-- own above the declaration, which pushes the code apart and sits between the
+-- annotation/attribute and the function.
 --
---   @Test  Run Test | Debug Test
---   void addsTwoNumbers() {
+--   @Test  Run Test | Debug Test          #[test]  ▶︎ Run Test | ⚙︎ Debug
+--   void addsTwoNumbers() {               fn adds_two_numbers() {
 --
--- Placement: the nearest test annotation above the declaration (any
--- `@…Test`, plus @TestFactory/@TestTemplate: @Test, @ParameterizedTest,
--- @SpringBootTest, ...); a declaration without one (a main method, a plain
--- test class) gets the lens at the end of its own line.
+-- Shared by every server that sends Run/Debug lenses; a language module
+-- registers its client by name (M.register) and says where the lens goes:
+-- `is_anchor` marks the line a lens moves up to (a test annotation or
+-- attribute), `is_annotation` the lines the walk up may cross on the way. A
+-- declaration without such a line (a main function, a test class, a test
+-- module) keeps the lens at the end of its own line.
 --
--- The built-in display (vim.lsp.codelens) is switched off for IntelliJ
--- buffers and this module fetches the lenses itself: on attach, on entering
--- the buffer, after edits (debounced), when the server asks for a refresh and
--- when its progress (import, indexing) ends.
+-- The built-in display (vim.lsp.codelens) is switched off for registered
+-- clients' buffers and this module fetches the lenses itself: on attach, on
+-- entering the buffer, after edits (debounced), when the server asks for a
+-- refresh and when its progress (import, indexing) ends.
 --
--- <leader>rl (run the lens on this line) is replaced so it works on both the
--- annotation line and the declaration line. <leader>rt / <leader>dt are the
--- plugin's and pick the test around the cursor on their own.
-local NAME = 'intellij'
-local ns = vim.api.nvim_create_namespace('features.jvm.lens')
+-- <leader>rl runs the lens on this line, on both the annotation line and the
+-- declaration line (replaces intellij-lsp's own <leader>rl).
+--
+-- Registered today: intellij (features/jvm/intellij.lua), rust-analyzer
+-- (features/rust/test.lua).
+local M = {}
+
+local ns = vim.api.nvim_create_namespace('features.lens')
+
+--- @class features.lens.Client
+--- @field label string shown in the <leader>rl description
+--- @field is_anchor fun(line: string): boolean the line a lens moves up to
+--- @field is_annotation fun(line: string): boolean a line the walk may cross
+
+--- @type table<string, features.lens.Client>
+local clients = {}
 
 --- Per buffer: client id, and lenses by row (both the row they are drawn on
 --- and the row the server put them on).
@@ -29,25 +42,30 @@ local state = {}
 local timers = {}
 local hooked = {}
 
-local function is_test_annotation(line)
-  local name = line:match('^%s*@([%w_.]+)')
-  name = name and name:match('([%w_]+)$')
-  return name ~= nil and (name:match('Test$') ~= nil or name == 'TestFactory' or name == 'TestTemplate')
+--- Draw `name`'s lenses at the end of the line.
+--- @param name string LSP client name
+--- @param client features.lens.Client
+function M.register(name, client)
+  clients[name] = client
 end
 
--- Walks up the annotation block above `row` (the declaration's name line) to a
--- test annotation. Stops at a blank line or anything that ends a statement,
+local function registered(client)
+  return client and clients[client.name] or nil
+end
+
+-- Walks up the annotation block above `row` (the declaration's name line) to
+-- an anchor line. Stops at a blank line or anything that ends a statement,
 -- block or comment, so it never wanders into the previous member.
-local function anchor_row(buf, row)
+local function anchor_row(buf, row, spec)
   local first = math.max(0, row - 15)
   local lines = vim.api.nvim_buf_get_lines(buf, first, row + 1, false)
   for r = row, first, -1 do
     local line = lines[r - first + 1] or ''
-    if is_test_annotation(line) then
+    if spec.is_anchor(line) then
       return r
     end
     if r < row then
-      local annotation = line:find('@', 1, true) ~= nil
+      local annotation = spec.is_annotation(line)
       if line:match('^%s*$') or (not annotation and (line:match('[;{}]%s*$') or line:match('%*/%s*$'))) then
         break
       end
@@ -56,7 +74,7 @@ local function anchor_row(buf, row)
   return row
 end
 
-local function render(buf, client_id, lenses)
+local function render(buf, client, lenses)
   vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
   local drawn, rows = {}, {}
   local function add(t, row, lens)
@@ -81,7 +99,7 @@ local function render(buf, client_id, lenses)
   for _, lens in ipairs(lenses) do
     if lens.command and (lens.command.title or '') ~= '' then
       local row = lens.range.start.line
-      local anchor = anchor_row(buf, row)
+      local anchor = anchor_row(buf, row, clients[client.name])
       add(drawn, anchor, lens)
       add(rows, anchor, lens)
       if anchor ~= row then
@@ -103,14 +121,14 @@ local function render(buf, client_id, lenses)
       hl_mode = 'combine',
     })
   end
-  state[buf] = { client_id = client_id, rows = rows }
+  state[buf] = { client_id = client.id, rows = rows }
 end
 
 local function refresh(buf)
   if not vim.api.nvim_buf_is_valid(buf) then
     return
   end
-  local client = vim.lsp.get_clients({ bufnr = buf, name = NAME })[1]
+  local client = vim.iter(vim.lsp.get_clients({ bufnr = buf })):find(registered)
   if not client then
     return
   end
@@ -122,7 +140,7 @@ local function refresh(buf)
       if err or not vim.api.nvim_buf_is_valid(buf) or vim.b[buf].changedtick ~= tick then
         return
       end
-      render(buf, client.id, result or {})
+      render(buf, client, result or {})
     end)
   end, buf)
 end
@@ -189,14 +207,15 @@ local function run_on_line()
   end)
 end
 
-local group = vim.api.nvim_create_augroup('features.jvm.lens', { clear = true })
+local group = vim.api.nvim_create_augroup('features.lens', { clear = true })
 
 vim.api.nvim_create_autocmd('LspAttach', {
   group = group,
-  desc = 'IntelliJ: code lenses at the end of the annotation line',
+  desc = 'Code lenses at the end of the annotation/attribute line',
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
-    if not client or client.name ~= NAME then
+    local spec = registered(client)
+    if not spec then
       return
     end
     local buf = ev.buf
@@ -213,7 +232,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
       hook_refresh(client)
       vim.keymap.set('n', '<leader>rl', run_on_line, {
         buffer = buf,
-        desc = 'Run the code lens on this line (IntelliJ)',
+        desc = 'Run the code lens on this line (' .. spec.label .. ')',
       })
       refresh(buf)
     end)
@@ -233,10 +252,10 @@ vim.api.nvim_create_autocmd('LspAttach', {
 vim.api.nvim_create_autocmd('LspProgress', {
   group = group,
   pattern = 'end',
-  desc = 'IntelliJ: refresh code lenses after import/indexing',
+  desc = 'Refresh code lenses after import/indexing',
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
-    if client and client.name == NAME then
+    if registered(client) then
       refresh_client(client)
     end
   end,
@@ -246,8 +265,7 @@ vim.api.nvim_create_autocmd({ 'LspDetach', 'BufWipeout' }, {
   group = group,
   callback = function(ev)
     if ev.event == 'LspDetach' then
-      local client = vim.lsp.get_client_by_id(ev.data.client_id)
-      if not client or client.name ~= NAME then
+      if not registered(vim.lsp.get_client_by_id(ev.data.client_id)) then
         return
       end
     end
@@ -261,3 +279,5 @@ vim.api.nvim_create_autocmd({ 'LspDetach', 'BufWipeout' }, {
     pcall(vim.api.nvim_buf_clear_namespace, ev.buf, ns, 0, -1)
   end,
 })
+
+return M

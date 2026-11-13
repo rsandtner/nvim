@@ -21,7 +21,8 @@
 -- Run, test and debug (through nvim-dap, features/dap.lua; every launch is
 -- built by Gradle/Maven first, output in :IntellijLspOutput):
 --   <leader>rr / rd     run / debug the main class at the cursor
---   <leader>rl          run the code lens on this line (Run/Debug, Run/Debug Test)
+--   <leader>rl          run the code lens on this line (Run/Debug, Run/Debug Test;
+--                       ours, features/lens.lua: lenses at the end of the line)
 --   <leader>rt / dt     run / debug the test method at the cursor, else its class
 --   <leader>rT          run the last test run again, same mode
 --                       failed tests go to quickfix (:copen), on the assert line
@@ -67,6 +68,19 @@ require('intellij-lsp').setup({
   -- <CR> must not accept a completion; the mapping below keeps it a
   -- (mini.pairs-aware) newline.
   enter_accepts_completion = false,
+})
+
+-- Run/Debug lenses at the end of the test annotation line (features/lens.lua):
+-- any `@…Test`, plus @TestFactory/@TestTemplate (@Test, @ParameterizedTest,
+-- @SpringBootTest, ...).
+require('features.lens').register('intellij', {
+  label = 'IntelliJ',
+  is_anchor = function(line)
+    local name = line:match('^%s*@([%w_.]+)')
+    name = name and name:match('([%w_]+)$')
+    return name ~= nil and (name:match('Test$') ~= nil or name == 'TestFactory' or name == 'TestTemplate')
+  end,
+  is_annotation = function(line) return line:find('@', 1, true) ~= nil end,
 })
 
 -- <CR> in Java/Kotlin buffers never picks a completion item: it closes the

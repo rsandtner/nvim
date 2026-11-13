@@ -20,8 +20,8 @@ local features = {
   'lsp', -- after fzf: its pickers are fzf-lua
   'diagnostics',
   'dap', -- before jvm.intellij: its run/test/debug need nvim-dap
+  'lens', -- Run/Debug lenses at the end of the @Test / #[test] line
   'jvm.intellij',
-  'jvm.lens', -- Run/Test lenses at the end of the @Test line
   'jvm.debug_panel', -- debug panel order: Watches, Locals, Call stack
   'rust.lsp', -- rust-analyzer through rustaceanvim
   'completion', -- blink.cmp everywhere except Java/Kotlin (built-in there)
